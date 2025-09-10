@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini E‑Commerce</title>
+  <style>
+    :root{--bg:#0f172a;--fg:#e2e8f0;--card:#111827;--muted:#94a3b8;--accent:#22c55e;--danger:#ef4444;--shadow:0 10px 25px rgba(0,0,0,.25)}
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial; background:var(--bg); color:var(--fg)}
+    .container{max-width:1200px;margin:0 auto;padding:20px}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;background:linear-gradient(180deg,rgba(15,23,42,.95),rgba(15,23,42,.75));backdrop-filter: blur(6px);padding:12px 20px;z-index:40;border-bottom:1px solid #1f2937}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
+    .brand .logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#22c55e,#10b981);display:grid;place-items:center;color:#052e16;box-shadow:var(--shadow)}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .input{background:#0b1220;border:1px solid #1f2937;color:var(--fg);padding:10px 12px;border-radius:12px;outline:none;min-width:180px}
+    .btn{border:0;border-radius:14px;padding:10px 14px;background:#1f2937;color:var(--fg);cursor:pointer;transition:.2s;box-shadow:var(--shadow)}
+    .btn:hover{transform:translateY(-1px);opacity:.95}
+    .btn.accent{background:var(--accent);color:#052e16;font-weight:700}
+    .btn.ghost{background:transparent;border:1px solid #334155}
+    .badge{font-size:12px;background:#0b1220;border:1px solid #334155;padding:6px 10px;border-radius:999px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:18px;padding:12px;box-shadow:var(--shadow)}
+    .product{display:flex;flex-direction:column;gap:8px}
+    .product img{width:100%;aspect-ratio:1/1;border-radius:14px;object-fit:cover;background:#0b1220;border:1px solid #1f2937}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .muted{color:var(--muted)}
+    .price{font-weight:800}
+    .sidebar{position:sticky;top:86px}
+    .cart-list{display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto;padding-right:6px}
+    .cart-item{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center}
+    .cart-item img{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #1f2937}
+    .qty{display:flex;align-items:center;gap:6px}
+    .qty button{width:26px;height:26px;border-radius:8px}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid #334155;color:var(--muted);background:#0b1220}
+    .filters{display:flex;flex-wrap:wrap;gap:8px}
+    .footer{margin-top:24px;display:flex;justify-content:center;color:#64748b}
+    .link{color:#93c5fd;cursor:pointer}
+    .toast{position:fixed;right:16px;bottom:16px;background:#111827;border:1px solid #334155;border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:none}
+    dialog{border:1px solid #334155;border-radius:16px;background:#0b1220;color:var(--fg);max-width:480px;box-shadow:var(--shadow)}
+    dialog::backdrop{background:rgba(0,0,0,.55)}
+    form .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    form input, form select, form textarea{background:#0b1220;border:1px solid #334155;color:var(--fg);padding:10px;border-radius:12px}
+    .rating{color:#fbbf24}
+    .chip{border:1px solid #334155;padding:6px 10px;border-radius:999px;cursor:pointer}
+    .chip.active{background:#1f2937}
+    .empty{padding:22px;text-align:center;color:#94a3b8;border:1px dashed #334155;border-radius:14px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}.sidebar{order:-1}.controls{width:100%}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">🛍️</div>
+      <div>
+        <div>Mini E‑Commerce</div>
+        <small class="muted">Search • Filter • Cart • Checkout • Login</small>
+      </div>
+    </div>
+    <div class="controls">
+      <input id="q" class="input" placeholder="Search products (name, tag)" />
+      <select id="category" class="input">
+        <option value="">All categories</option>
+      </select>
+      <select id="sort" class="input">
+        <option value="pop">Sort: Popular</option>
+        <option value="price-asc">Price: Low → High</option>
+        <option value="price-desc">Price: High → Low</option>
+        <option value="rating">Rating</option>
+        <option value="new">Newest</option>
+      </select>
+      <button class="btn ghost" id="wishlistBtn">❤ Wishlist <span id="wishCount" class="badge">0</span></button>
+      <button class="btn" id="loginBtn">🔐 <span class="login-text">Login</span></button>
+      <button class="btn accent" id="checkoutBtn">🛒 Checkout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <!-- Left: Product catalogue -->
+      <div class="card" style="grid-column: span 9">
+        <div class="row" style="margin-bottom:10px">
+          <div class="filters">
+            <span class="pill">Price ₹<span id="minP">0</span> – ₹<span id="maxP">0</span></span>
+            <span class="pill">Results: <span id="count">0</span></span>
+            <span class="pill">User: <span id="userBadge">guest</span></span>
+            <span class="pill">Dark Mode</span>
+          </div>
+          <div class="row" style="gap:8px">
+            <input type="range" id="priceMin" min="0" max="100000" step="100" />
+            <input type="range" id="priceMax" min="0" max="100000" step="100" />
+          </div>
+        </div>
+        <div id="chips" class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+        <div id="products" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+        <div id="pager" class="row" style="justify-content:center;margin-top:10px;gap:6px"></div>
+      </div>
+
+      <!-- Right: Cart & Summary -->
+      <aside class="card sidebar" style="grid-column: span 3">
+        <div class="row">
+          <strong>Cart</strong>
+          <span class="badge">Items <span id="cartCount">0</span></span>
+        </div>
+        <div class="cart-list" id="cartList"></div>
+        <div class="empty" id="cartEmpty">Your cart is empty.</div>
+        <div style="margin-top:10px" class="row">
+          <input id="coupon" class="input" placeholder="Coupon (SAVE10)" style="width:100%">
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="muted">Subtotal</div>
+          <div id="subtotal" class="price">₹0</div>
+        </div>
+        <div class="row">
+          <div class="muted">Discount</div>
+          <div id="discount" class="price">– ₹0</div>
+        </div>
+        <div class="row">
+          <div class="muted">Shipping</div>
+          <div id="shipping" class="price">₹99</div>
+        </div>
+        <hr style="border-color:#334155;margin:10px 0">
+        <div class="row">
+          <div style="font-weight:900">Grand Total</div>
+          <div id="grand" class="price">₹0</div>
+        </div>
+        <button id="payBtn" class="btn accent" style="width:100%;margin-top:10px">Pay Now</button>
+        <button id="clearCart" class="btn" style="width:100%;margin-top:8px">Clear Cart</button>
+      </aside>
+    </div>
+
+    <div class="footer">Built with vanilla HTML/CSS/JS • LocalStorage auth • No backend required</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Login / Signup Modal -->
+  <dialog id="authDialog">
+    <form id="authForm" method="dialog">
+      <h3 style="margin:0 0 12px 0">Login or Sign up</h3>
+      <div class="field"><label>Email</label><input id="authEmail" type="email" required placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input id="authPass" type="password" required minlength="4" placeholder="••••"></div>
+      <div class="row" style="justify-content:space-between;gap:8px">
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="signupBtn" value="signup">Sign up</button>
+          <button class="btn accent" id="signinBtn" value="signin">Login</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Checkout Modal -->
+  <dialog id="checkoutDialog">
+    <form id="checkoutForm" method="dialog">
+      <h3 style="margin:0 0 12px 0">Checkout</h3>
+      <div class="field"><label>Full Name</label><input id="coName" required></div>
+      <div class="field"><label>Phone</label><input id="coPhone" required pattern="[0-9]{10}" placeholder="10-digit"></div>
+      <div class="field"><label>Address</label><textarea id="coAddr" required rows="3"></textarea></div>
+      <div class="row" style="justify-content:space-between;gap:8px;margin-top:6px">
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button class="btn accent" id="placeOrder" value="place">Place Order</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Product Details Modal -->
+  <dialog id="detailsDialog">
+    <div id="detailsContent"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button class="btn" onclick="detailsDialog.close()">Close</button>
+    </div>
+  </dialog>
+
+  <script>
+  // ============ Simple Data Layer ============
+  const store = {
+    products: [
+      {id:1,name:'Wireless Headphones',cat:'Electronics',price:2999,stock:14,rating:4.5,tags:['audio','bluetooth','music'],img:'headphone.jpg',pop:98,createdAt:'2025-08-01'},
+      {id:2,name:'Gaming Mouse',cat:'Electronics',price:1499,stock:30,rating:4.3,tags:['gaming','usb'],img:'mouse.jpg',pop:91,createdAt:'2025-07-18'},
+      {id:3,name:'Cotton T‑Shirt',cat:'Fashion',price:599,stock:50,rating:4.0,tags:['clothes','summer'],img:'tshirt.jpg',pop:60,createdAt:'2025-06-02'},
+      {id:4,name:'Running Shoes',cat:'Fashion',price:3499,stock:9,rating:4.6,tags:['sport','comfort'],img:'shoes.jpg',pop:88,createdAt:'2025-07-01'},
+      {id:5,name:'Ceramic Mug',cat:'Home',price:349,stock:80,rating:4.2,tags:['kitchen','cup'],img:'mug.webp',pop:54,createdAt:'2025-05-11'},
+      {id:6,name:'Stainless Bottle',cat:'Home',price:799,stock:23,rating:4.1,tags:['water','outdoor'],img:'bottel.webp',pop:58,createdAt:'2025-04-19'},
+      {id:7,name:'Smart Watch',cat:'Electronics',price:4999,stock:6,rating:4.4,tags:['fitness','notification'],img:'watch.jpg',pop:96,createdAt:'2025-08-18'},
+      {id:8,name:'Backpack 25L',cat:'Fashion',price:1899,stock:12,rating:4.3,tags:['bag','travel'],img:'bag.jpg',pop:83,createdAt:'2025-07-22'},
+      {id:9,name:'LED Desk Lamp',cat:'Home',price:1299,stock:18,rating:4.5,tags:['study','work'],img:'lamp.jpg',pop:72,createdAt:'2025-08-05'},
+      {id:10,name:'Bluetooth Speaker',cat:'Electronics',price:2499,stock:20,rating:4.4,tags:['party','portable'],img:'speaker.jpg',pop:93,createdAt:'2025-08-28'},
+      {id:11,name:'Jeans Slim Fit',cat:'Fashion',price:2199,stock:15,rating:4.1,tags:['denim','clothes'],img:'jeans.jpg',pop:65,createdAt:'2025-07-09'},
+      {id:12,name:'Yoga Mat',cat:'Home',price:999,stock:25,rating:4.2,tags:['fitness','mat'],img:'mat.jpg',pop:59,createdAt:'2025-06-29'},
+      {id:13,name:'Tripod Stand',cat:'Electronics',price:1099,stock:40,rating:4.0,tags:['camera','content'],img:'stand.jpg',pop:57,createdAt:'2025-05-30'},
+      {id:14,name:'Hoodie Fleece',cat:'Fashion',price:1799,stock:10,rating:4.5,tags:['winter','clothes'],img:'jac.jpg',pop:80,createdAt:'2025-01-15'},
+      {id:15,name:'Pressure Cooker',cat:'Home',price:2199,stock:11,rating:4.6,tags:['kitchen','steel'],img:'cook.jpg',pop:79,createdAt:'2025-07-27'},
+    ],
+    coupons: { 'SAVE10': 0.10, 'FREESHIP': 'FREESHIP' }
+  }
+
+  const el = id => document.getElementById(id);
+  const fmt = n => '₹' + n.toLocaleString('en-IN');
+
+  // ============ Auth (LocalStorage) ============
+  const auth = {
+    key: 'mini.users',
+    userKey: 'mini.currentUser',
+    users(){ return JSON.parse(localStorage.getItem(this.key)||'[]') },
+    saveUsers(list){ localStorage.setItem(this.key, JSON.stringify(list)) },
+    current(){ return JSON.parse(localStorage.getItem(this.userKey)||'null') },
+    setCurrent(u){ localStorage.setItem(this.userKey, JSON.stringify(u)) },
+    signup(email, pass){
+      let list=this.users();
+      if(list.find(u=>u.email===email)) throw new Error('Email already exists');
+      const u={id:Date.now(),email,pass,orders:[],wishlist:[],cart:{}};
+      list.push(u); this.saveUsers(list); this.setCurrent(u); return u;
+    },
+    signin(email, pass){
+      let u=this.users().find(u=>u.email===email && u.pass===pass);
+      if(!u) throw new Error('Invalid credentials');
+      this.setCurrent(u); return u;
+    },
+    signout(){ localStorage.removeItem(this.userKey) }
+  }
+
+  // ============ State ============
+  const state = {
+    q:'',cat:'',sort:'pop',priceMin:0,priceMax:100000,chip:'',page:1,per:9,
+    cart:{}, coupon:'',
+  }
+
+  // ============ Init UI ============
+  const categories = [...new Set(store.products.map(p=>p.cat))];
+  categories.forEach(c=>{
+    const opt=document.createElement('option'); opt.value=c; opt.textContent=c; el('category').appendChild(opt);
+  });
+  const tags = [...new Set(store.products.flatMap(p=>p.tags))];
+  tags.forEach(t=>{
+    const s=document.createElement('span'); s.className='chip'; s.textContent=t; s.onclick=()=>{state.chip=state.chip===t?'':t;
+      document.querySelectorAll('#chips .chip').forEach(ch=>ch.classList.remove('active'));
+      if(state.chip){ s.classList.add('active') } render();
+    }; el('chips').appendChild(s)
+  });
+
+  const minPrice = Math.min(...store.products.map(p=>p.price));
+  const maxPrice = Math.max(...store.products.map(p=>p.price));
+  state.priceMin=minPrice; state.priceMax=maxPrice;
+  el('priceMin').min=minPrice; el('priceMin').max=maxPrice; el('priceMin').value=minPrice;
+  el('priceMax').min=minPrice; el('priceMax').max=maxPrice; el('priceMax').value=maxPrice;
+
+  // ============ Event Bindings ============
+  el('q').oninput = e=>{ state.q=e.target.value.toLowerCase(); state.page=1; render() }
+  el('category').onchange = e=>{ state.cat=e.target.value; state.page=1; render() }
+  el('sort').onchange = e=>{ state.sort=e.target.value; render() }
+  el('priceMin').oninput = e=>{ state.priceMin=+e.target.value; if(state.priceMin>state.priceMax) state.priceMin=state.priceMax; render() }
+  el('priceMax').oninput = e=>{ state.priceMax=+e.target.value; if(state.priceMax<state.priceMin) state.priceMax=state.priceMin; render() }
+  el('coupon').oninput = e=>{ state.coupon=e.target.value.trim().toUpperCase(); totals() }
+  el('clearCart').onclick=()=>{ state.cart={}; saveCart(); toast('Cart cleared'); renderCart() }
+
+  // Auth buttons
+  const authDialog = document.getElementById('authDialog');
+  el('loginBtn').onclick=()=>{
+    const u=auth.current();
+    if(u){ auth.signout(); updateUserBadge(); toast('Signed out'); } else { authDialog.showModal() }
+  }
+  document.getElementById('signupBtn').onclick=(ev)=>{ ev.preventDefault(); try{ auth.signup(el('authEmail').value, el('authPass').value); authDialog.close(); updateUserBadge(); toast('Welcome! Account created'); }catch(e){ toast(e.message) } }
+  document.getElementById('signinBtn').onclick=(ev)=>{ ev.preventDefault(); try{ auth.signin(el('authEmail').value, el('authPass').value); authDialog.close(); updateUserBadge(); toast('Logged in'); loadCart(); renderCart(); }catch(e){ toast(e.message) } }
+
+  // Checkout
+  const checkoutDialog = document.getElementById('checkoutDialog');
+  el('checkoutBtn').onclick=()=>{ checkoutDialog.showModal() }
+  el('payBtn').onclick=()=>{ checkoutDialog.showModal() }
+  document.getElementById('placeOrder').onclick=(ev)=>{
+    ev.preventDefault();
+    if(!Object.keys(state.cart).length) return toast('Your cart is empty');
+    const name=el('coName').value.trim(), phone=el('coPhone').value.trim(), addr=el('coAddr').value.trim();
+    if(!name||!addr||!/^[0-9]{10}$/.test(phone)) return toast('Please fill valid details');
+    const u=auth.current(); if(!u) return toast('Login required');
+    // Create order
+    const items=Object.entries(state.cart).map(([id,qty])=>({id:+id,qty,price:store.products.find(p=>p.id==id).price}));
+    const order={id:Date.now(),date:new Date().toISOString(),items,total:calcGrand()};
+    const users=auth.users(); const me=users.find(x=>x.id===u.id); me.orders.push(order); localStorage.setItem(auth.key, JSON.stringify(users)); auth.setCurrent(me);
+    state.cart={}; saveCart(); renderCart(); checkoutDialog.close(); toast('Order placed! View in order history (click your email)');
+  }
+
+  // Wishlist
+  el('wishlistBtn').onclick=()=>{ const u=auth.current(); if(!u) return toast('Login to use Wishlist'); renderWishlist() }
+
+  // ============ Persistence ============
+  function cartKey(){ const u=auth.current(); return u?`mini.cart.${u.id}`:'mini.cart.guest' }
+  function saveCart(){ localStorage.setItem(cartKey(), JSON.stringify(state.cart)) }
+  function loadCart(){ state.cart=JSON.parse(localStorage.getItem(cartKey())||'{}') }
+
+  // ============ Rendering ============
+  function render(){
+    el('minP').textContent=state.priceMin; el('maxP').textContent=state.priceMax;
+    // Filter
+    let list = store.products.filter(p=>
+      p.price>=state.priceMin && p.price<=state.priceMax &&
+      (!state.cat || p.cat===state.cat) &&
+      (!state.chip || p.tags.includes(state.chip)) &&
+      (!state.q || (p.name.toLowerCase().includes(state.q) || p.tags.join(' ').includes(state.q)))
+    )
+    // Sort
+    list.sort((a,b)=>{
+      switch(state.sort){
+        case 'price-asc': return a.price-b.price;
+        case 'price-desc': return b.price-a.price;
+        case 'rating': return b.rating-a.rating;
+        case 'new': return new Date(b.createdAt)-new Date(a.createdAt);
+        default: return b.pop-a.pop;
+      }
+    })
+
+    // Pagination
+    const total=list.length; el('count').textContent=total;
+    const pages=Math.max(1, Math.ceil(total/state.per));
+    if(state.page>pages) state.page=pages;
+    const start=(state.page-1)*state.per; const view=list.slice(start,start+state.per);
+
+    // Pager UI
+    const pager=el('pager'); pager.innerHTML='';
+    for(let i=1;i<=pages;i++){
+      const b=document.createElement('button'); b.className='btn ' + (i===state.page?'accent':''); b.textContent=i; b.onclick=()=>{state.page=i; render()}; pager.appendChild(b)
+    }
+
+    // Products
+    const wrap=el('products'); wrap.innerHTML='';
+    view.forEach(p=>{
+      const d=document.createElement('div'); d.className='product card';
+      d.innerHTML=`
+        <img src="${p.img}" alt="${p.name}" loading="lazy"/>
+        <div class="row"><strong>${p.name}</strong><span class="rating">★ ${p.rating}</span></div>
+        <div class="row"><span class="muted">${p.cat}</span><span class="price">${fmt(p.price)}</span></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap">${p.tags.map(t=>`<span class='badge'>${t}</span>`).join('')}</div>
+        <div class="row" style="gap:8px;margin-top:6px">
+          <button class="btn" onclick="showDetails(${p.id})">Details</button>
+          <button class="btn accent" onclick="addToCart(${p.id})">Add</button>
+          <button class="btn ghost" onclick="toggleWish(${p.id})">❤</button>
+        </div>
+      `;
+      wrap.appendChild(d);
+    })
+  }
+
+  function renderCart(){
+    el('cartList').innerHTML='';
+    const entries=Object.entries(state.cart);
+    el('cartEmpty').style.display = entries.length? 'none':'block';
+    entries.forEach(([id,qty])=>{
+      const p=store.products.find(x=>x.id==id);
+      const row=document.createElement('div'); row.className='cart-item';
+      row.innerHTML=`
+        <img src="${p.img}"/>
+        <div>
+          <div class="row"><strong>${p.name}</strong><span class="price">${fmt(p.price*qty)}</span></div>
+          <div class="qty">
+            <button class="btn" onclick="dec(${p.id})">-</button>
+            <span class="pill">${qty}</span>
+            <button class="btn" onclick="inc(${p.id})">+</button>
+            <button class="btn ghost" onclick="rem(${p.id})">Remove</button>
+          </div>
+        </div>
+      `;
+      el('cartList').appendChild(row);
+    })
+    el('cartCount').textContent=entries.reduce((s,[,q])=>s+q,0);
+    totals();
+  }
+
+  function totals(){
+    const subtotal = Object.entries(state.cart).reduce((sum,[id,qty])=>{
+      const p=store.products.find(x=>x.id==id); return sum + p.price*qty;
+    },0)
+    let discount=0; let shipping = subtotal?99:0;
+    if(state.coupon in store.coupons){
+      const v=store.coupons[state.coupon];
+      if(v==='FREESHIP'){ shipping = 0; }
+      else if(typeof v==='number'){ discount = Math.round(subtotal * v) }
+    }
+    const grand = Math.max(0, subtotal - discount) + shipping;
+    el('subtotal').textContent=fmt(subtotal);
+    el('discount').textContent='– ' + fmt(discount);
+    el('shipping').textContent=fmt(shipping);
+    el('grand').textContent=fmt(grand);
+    return grand;
+  }
+  function calcGrand(){ return Object.entries(state.cart).reduce((sum,[id,qty])=> sum + store.products.find(p=>p.id==id).price*qty,0) - 0 + (Object.keys(state.cart).length?99:0) }
+
+  // ============ Actions ============
+  function addToCart(id){ state.cart[id]=(state.cart[id]||0)+1; saveCart(); renderCart(); toast('Added to cart') }
+  function inc(id){ state.cart[id]++; saveCart(); renderCart() }
+  function dec(id){ state.cart[id]=Math.max(1,(state.cart[id]-1)); saveCart(); renderCart() }
+  function rem(id){ delete state.cart[id]; saveCart(); renderCart() }
+
+  function showDetails(id){
+    const p=store.products.find(x=>x.id==id);
+    const box=document.getElementById('detailsContent');
+    box.innerHTML=`
+      <h3 style="margin:0">${p.name}</h3>
+      <div class="muted">${p.cat} • ★ ${p.rating}</div>
+      <img src="${p.img}" style="width:100%;border-radius:12px;margin:10px 0;border:1px solid #334155"/>
+      <p>Price: <strong>${fmt(p.price)}</strong></p>
+      <p class="muted">Tags: ${p.tags.join(', ')}</p>
+      <div class="row" style="gap:8px">
+        <button class="btn accent" onclick="addToCart(${p.id}); detailsDialog.close()">Add to Cart</button>
+        <button class="btn" onclick="toggleWish(${p.id})">❤ Wishlist</button>
+      </div>
+    `;
+    detailsDialog.showModal();
+  }
+
+  function toggleWish(id){
+    const u=auth.current(); if(!u) return toast('Login to use Wishlist');
+    const users=auth.users(); const me=users.find(x=>x.id===u.id);
+    const i=me.wishlist.indexOf(id); if(i>=0) me.wishlist.splice(i,1); else me.wishlist.push(id);
+    localStorage.setItem(auth.key, JSON.stringify(users)); auth.setCurrent(me);
+    updateWishCount(); toast('Wishlist updated');
+  }
+
+  function renderWishlist(){
+    const u=auth.current(); if(!u) return;
+    const me=auth.users().find(x=>x.id===u.id);
+    const liked = store.products.filter(p=>me.wishlist.includes(p.id));
+    if(!liked.length) return toast('Wishlist empty');
+    const names = liked.map(p=>p.name).join(', ');
+    toast('Wishlist: '+names);
+  }
+
+  function updateUserBadge(){
+    const u=auth.current();
+    el('userBadge').textContent = u? u.email : 'guest';
+    document.querySelector('.login-text').textContent = u? 'Logout' : 'Login';
+    updateWishCount();
+    loadCart(); renderCart();
+  }
+
+  function updateWishCount(){
+    const u=auth.current();
+    let n=0; if(u){ const me=auth.users().find(x=>x.id===u.id); n=me?.wishlist?.length||0 }
+    el('wishCount').textContent=n;
+  }
+
+  function toast(msg){
+    const t=el('toast'); t.textContent=msg; t.style.display='block';
+    clearTimeout(window.__toast); window.__toast=setTimeout(()=>t.style.display='none', 1800);
+  }
+
+  // Click email badge to show order history
+  el('userBadge').onclick=()=>{
+    const u=auth.current(); if(!u) return toast('Login to view orders');
+    const me=auth.users().find(x=>x.id===u.id);
+    if(!me.orders.length) return toast('No orders yet');
+    const list = me.orders.map(o=>`#${o.id} • ${new Date(o.date).toLocaleString()} • ${fmt(o.total)}`).join('\n');
+    alert('Order History\n' + list);
+  }
+
+  // Initial load
+  updateUserBadge();
+  render();
+  </script>
+</body>
+</html>
